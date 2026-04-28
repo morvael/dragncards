@@ -13,7 +13,7 @@ config :dragncards, DragnCardsWeb.Endpoint,
   http: [port: 4000],
   url: [host: "dragncards.com", port: 4000],
   cache_static_manifest: "priv/static/cache_manifest.json",
-  check_origin: ["//localhost", "//dragncards", "//dragncards.com", "//www.dragncards.com"],
+  check_origin: ["//localhost", "//dragncards", "//dragncards.com", "//www.dragncards.com", "//beta.dragncards.com", "//www.beta.dragncards.com"],
   # check_origin: [
   #   "//dragncards.com",
   #   "//api.dragncards.com",
@@ -95,7 +95,7 @@ import_config "prod.secret.exs"
 #   http: [ip: {0, 0, 0, 0}, port: 4000],
 #   url: [host: "dragncards.com", port: 4000],
 #   cache_static_manifest: "priv/static/cache_manifest.json",
-#   check_origin: ["//localhost", "//dragncards", "//dragncards.com", "//www.dragncards.com"],
+#   check_origin: ["//localhost", "//dragncards", "//dragncards.com", "//www.dragncards.com", "//beta.dragncards.com", "//www.beta.dragncards.com"],
 #   # check_origin: [
 #   #   "//dragncards.com",
 #   #   "//api.dragncards.com",

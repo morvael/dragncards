@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect, useRef, useContext } from "react";
 import { useSelector, useDispatch } from 'react-redux';
 import RoomProviders from "./RoomProviders";
 import {useSetMessages} from '../../contexts/MessagesContext';
@@ -7,6 +7,7 @@ import { applyDeltaRedo, appendDelta, setGameUi, setPlayerInfo, setSockets, setD
 import useProfile from "../../hooks/useProfile";
 import { resetPlayerUi, setAlert, setPluginRepoUpdateGameDef, setReplayStep, setPlayerUiValues, overridePlayerUiValues, setRoomNotFound } from "../store/playerUiSlice";
 import { PluginProvider } from "../../contexts/PluginContext";
+import SocketContext from "../../contexts/SocketContext";
 import store from "../../store";
 import { mergeObjects } from "../myplugins/uploadPluginFunctions";
 import { getGameDefSchema } from "../myplugins/validate/getGameDefSchema";
@@ -23,9 +24,14 @@ export const Room = ({ slug }) => {
   const playerN = usePlayerN();
   const sendLocalMessage = useSendLocalMessage();
   const [outOfSync, setOutOfSync] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
   const roomNotFound = useSelector(state => state.playerUi.roomNotFound);
   const myUserId = myUser?.id;
   const isPluginAuthor = useIsPluginAuthor();
+  const socketFromContext = useContext(SocketContext);
+  const socketRef = useRef(socketFromContext);
+  const retriedRef = useRef(false);
+  useEffect(() => { socketRef.current = socketFromContext; }, [socketFromContext]);
   //const plugin = usePlugin();
 
   const onChannelMessage = useCallback((event, payload) => {
@@ -65,6 +71,7 @@ export const Room = ({ slug }) => {
         setOutOfSync(true);
       }
     } else if (event === "current_state" && payload !== null) {
+      setReconnecting(false);
       const game_ui = payload;
       if (roomSlug !== game_ui.roomSlug) { // Entered a new room
         // Reset player UI
@@ -74,7 +81,7 @@ export const Room = ({ slug }) => {
       //delayBroadcast = setTimeout(function() {
       console.log("onChannelMessage: dispatching to game", game_ui)
       dispatch(setGameUi(game_ui));
-      
+
       //setMessages(game_ui.logMessages);
       dispatch(setReplayStep(game_ui.replayStep));
 
@@ -99,7 +106,27 @@ export const Room = ({ slug }) => {
     } else if (event === "users_changed" && payload !== null) {
       dispatch(setSockets(payload));
     } else if (event === "unable_to_get_state_on_join") {
-      dispatch(setRoomNotFound(true));
+      if (!retriedRef.current) {
+        // First failure: the websocket may be on the old backend while the room was
+        // created on the new one (post-deploy mismatch). Reconnect and retry once.
+        retriedRef.current = true;
+        setReconnecting(true);
+        const s = socketRef.current;
+        if (s) {
+          s.disconnect();
+          setTimeout(() => s.connect(), 500);
+        }
+        // Fallback: if no response arrives within 10s, give up and show the error.
+        setTimeout(() => {
+          if (retriedRef.current) {
+            setReconnecting(false);
+            dispatch(setRoomNotFound(true));
+          }
+        }, 10000);
+      } else {
+        setReconnecting(false);
+        dispatch(setRoomNotFound(true));
+      }
     } else if (event === "bad_game_state" && payload !== null) {
       const errors = payload.errors;
       console.error("Bad game state received:", errors);
@@ -184,22 +211,37 @@ export const Room = ({ slug }) => {
   // console.log("plugin room",plugin)
   //if (plugin === null) return (<div className="text-white m-4">Loading...</div>);
 
+  if (reconnecting) return (
+    <div className="text-white flex flex-col items-center justify-center h-screen p-4">
+      <div className="bg-gray-700 rounded-lg p-6 max-w-md text-center">
+        <h2 className="text-xl font-bold mb-3">Connecting to room...</h2>
+        <p className="text-gray-300">Reconnecting to the server. Please wait.</p>
+      </div>
+    </div>
+  );
+
   if (roomNotFound) return (
     <div className="text-white flex flex-col items-center justify-center h-screen p-4">
       <div className="bg-gray-700 rounded-lg p-6 max-w-md text-center">
         <h2 className="text-xl font-bold mb-3">Room not found</h2>
         <p className="text-gray-300 mb-4">
-          This room is no longer available. It may have been closed due to inactivity, or it may be running on an older version of the server that is no longer accepting new connections.
+          This room is no longer available. It may have been closed due to inactivity,
+          or the server may have been updated while you were connected.
         </p>
-        <p className="text-gray-300 mb-4">
-          Please ask the room owner to create a new room for you to join.
-        </p>
-        <button
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-          onClick={() => { dispatch(setRoomNotFound(false)); window.history.back(); }}
-        >
-          Go back
-        </button>
+        <div className="flex gap-3 justify-center">
+          <button
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+            onClick={() => window.location.reload()}
+          >
+            Reload page
+          </button>
+          <button
+            className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded"
+            onClick={() => { dispatch(setRoomNotFound(false)); window.history.back(); }}
+          >
+            Go back
+          </button>
+        </div>
       </div>
     </div>
   );
