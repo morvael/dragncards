@@ -38,6 +38,16 @@ export const uiSettings = {
     "label": "touchMode",
     "type": "boolean",
     "default": false
+  },
+  "rendererEngine": {
+    "id": "rendererEngine",
+    "label": "rendererEngine",
+    "type": "option",
+    "default": "default",
+    "options": [
+      { "id": "default", "label": "rendererDefault" },
+      { "id": "dnc3d",   "label": "rendererDnc3d"  }
+    ]
   }
 }
 

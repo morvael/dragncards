@@ -1,0 +1,196 @@
+/* dnc3d engine styles — all classes namespaced with dnc3d- to avoid conflicts */
+
+.dnc3d-stage {
+  position: absolute;
+  inset: 0;
+  perspective: 300vw;
+  perspective-origin: 50% 50%;
+  overflow: hidden;
+}
+
+.dnc3d-tilt {
+  position: absolute;
+  top: 0;
+  transform-origin: 50% 0%;
+  transform-style: preserve-3d;
+  border-radius: 0.4vw;
+  --table-opacity: 1;
+}
+
+.dnc3d-table-surface {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: var(--table-opacity);
+  box-sizing: border-box;
+  transform: translateZ(-1px);
+  backface-visibility: hidden;
+  will-change: transform;
+  background: radial-gradient(ellipse at 50% 60%, #2d6a3f 0%, #1a4a2a 60%, #0e2e18 100%);
+  background-image:
+    radial-gradient(ellipse at 50% 60%, #2d6a3f 0%, #1a4a2a 60%, #0e2e18 100%),
+    repeating-linear-gradient(45deg,
+      rgba(255,255,255,0.02) 0, rgba(255,255,255,0.02) 1px,
+      transparent 1px, transparent 8px),
+    repeating-linear-gradient(-45deg,
+      rgba(255,255,255,0.02) 0, rgba(255,255,255,0.02) 1px,
+      transparent 1px, transparent 8px);
+  border: 0.3vw solid #5a3a1a;
+  box-shadow: 0 0 3vw rgba(0,0,0,0.8);
+}
+
+.dnc3d-region-outline {
+  position: absolute;
+  border: 1px dashed rgba(255,255,255,0.22);
+  border-radius: 0.3vw;
+  pointer-events: none;
+  transform: translateZ(0.5px);
+  transform-style: preserve-3d;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.dnc3d-region-outline.dnc3d-region-elevated {
+  border-color: rgba(255,255,255,0.45);
+  background: rgba(255,255,255,0.04);
+  box-shadow:
+    0 16px 48px rgba(0,0,0,0.65),
+    0  4px 12px rgba(0,0,0,0.45);
+}
+
+.dnc3d-region-scroll-outer {
+  position: absolute;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.dnc3d-region-scroll-sentinel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 12px;
+  overflow-x: scroll;
+  overflow-y: hidden;
+  pointer-events: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.4) rgba(255,255,255,0.08);
+}
+.dnc3d-region-scroll-sentinel::-webkit-scrollbar        { height: 6px; }
+.dnc3d-region-scroll-sentinel::-webkit-scrollbar-track  { background: rgba(255,255,255,0.08); border-radius: 3px; }
+.dnc3d-region-scroll-sentinel::-webkit-scrollbar-thumb  { background: rgba(255,255,255,0.4);  border-radius: 3px; }
+.dnc3d-region-scroll-spacer { height: 1px; }
+
+.dnc3d-region-scroll-sentinel--vertical {
+  bottom: 0;
+  right: 0;
+  left: auto;
+  top: 0;
+  width: 12px;
+  height: auto;
+  overflow-x: hidden;
+  overflow-y: scroll;
+  scrollbar-width: thin;
+}
+.dnc3d-region-scroll-sentinel--vertical::-webkit-scrollbar        { width: 6px; height: auto; }
+.dnc3d-region-scroll-sentinel--vertical::-webkit-scrollbar-track  { background: rgba(255,255,255,0.08); border-radius: 3px; }
+.dnc3d-region-scroll-sentinel--vertical::-webkit-scrollbar-thumb  { background: rgba(255,255,255,0.4);  border-radius: 3px; }
+.dnc3d-region-scroll-sentinel--vertical .dnc3d-region-scroll-spacer { width: 1px; height: 1px; }
+
+.dnc3d-insert-indicator {
+  position: absolute;
+  width: 3px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 9999;
+  display: none;
+  transform: translateX(-50%);
+  box-shadow: 0 0 6px 3px rgba(255, 255, 255, 0.6), 0 0 18px 6px rgba(180, 220, 255, 0.35);
+}
+
+.dnc3d-region-label {
+  position: absolute;
+  top: 3px;
+  left: 5px;
+  color: rgba(255,255,255,0.22);
+  font: 0.55vw/1 sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Lift wrapper — handles translateZ so card stays above table during flip */
+.dnc3d-card-lift {
+  position: absolute;
+  pointer-events: auto;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.dnc3d-card {
+  width: var(--card-w, 5vw);
+  height: var(--card-h, 7vw);
+  cursor: grab;
+  border-radius: 0.4vw;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.dnc3d-card.dnc3d-dragging { cursor: grabbing; }
+
+.dnc3d-card-face {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 0.1vw solid rgba(255,255,255,0.2);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transition: box-shadow 120ms ease-out;
+}
+.dnc3d-card:not(.dnc3d-dragging):hover .dnc3d-card-face {
+  box-shadow:
+    0 0 0 1.5px rgba(255, 220, 0, 0.9),
+    0 0 10px 4px rgba(255, 200, 0, 0.45);
+}
+
+.dnc3d-card-back {
+  background: #1a3a6b;
+  transform: rotateY(180deg);
+}
+.dnc3d-card-back::before {
+  content: "";
+  position: absolute;
+  inset: 0.4vw;
+  border-radius: 0.2vw;
+  border: 0.05vw solid rgba(255,255,255,0.15);
+  background:
+    repeating-linear-gradient(45deg,
+      rgba(255,255,255,0.05) 0, rgba(255,255,255,0.05) 2px,
+      transparent 2px, transparent 10px),
+    repeating-linear-gradient(-45deg,
+      rgba(255,255,255,0.05) 0, rgba(255,255,255,0.05) 2px,
+      transparent 2px, transparent 10px);
+}
+
+/* Attachment icon — shown on the dragged stack edge when hovering an attach zone */
+.dnc3d-attach-icon {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 50%;
+  background: rgba(20, 20, 20, 0.82);
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.92);
+  opacity: 0;
+  transition: opacity 100ms ease-out;
+  z-index: 10001;
+  box-shadow: 0 0.3vh 0.8vh rgba(0, 0, 0, 0.55);
+}
+.dnc3d-attach-icon.dnc3d-is-visible { opacity: 1; }
+.dnc3d-attach-icon svg {
+  width: 55%;
+  height: 55%;
+}
+
+.dnc3d-stack-zone { position: absolute; pointer-events: none; }

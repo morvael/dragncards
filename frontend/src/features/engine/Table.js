@@ -1,5 +1,7 @@
 import React, { useEffect } from "react";
 import { TableLayout } from "./TableLayout";
+import Dnc3DTable from "../engine-dnc3d/Dnc3DTable";
+import { useLayout } from "./hooks/useLayout";
 import { GiantCard } from "./GiantCard";
 import { FadeTextPlayer } from "./FadeTextPlayer";
 import { TopBar } from "./TopBar";
@@ -42,7 +44,12 @@ export const Table = React.memo(({onDragEnd}) => {
   const setTouchAction = useSetTouchAction();
   const showModal = useSelector(state => state?.playerUi?.showModal);
   const loadedADeck = useSelector(state => state?.gameUi?.game?.loadedADeck);
-  const myUserId = useProfile()?.id;
+  const userProfile = useProfile();
+  const myUserId    = userProfile?.id;
+  const language    = userProfile?.language;
+  const layout      = useLayout();
+  const game        = useSelector(state => state?.gameUi?.game);
+  const rendererEngine = useSelector(state => state?.playerUi?.userSettings?.rendererEngine);
   const isHost = useIsHost();
   const playerN = usePlayerN();
   const doActionList = useDoActionList();
@@ -98,7 +105,16 @@ export const Table = React.memo(({onDragEnd}) => {
           </div>
           {/* Table */}
           <div className="relative w-full" style={{height: touchMode ? "82%" : "94%"}}>
-            <TableLayout onDragEnd={onDragEnd}/>
+            {rendererEngine === 'dnc3d'
+              ? <Dnc3DTable
+                  game={game}
+                  layoutRegions={layout?.regions}
+                  gameDef={gameDef}
+                  language={language}
+                  doActionList={doActionList}
+                />
+              : <TableLayout onDragEnd={onDragEnd}/>
+            }
             <FadeTextPlayer/>
           </div>
           {/* Touch Bar */}
