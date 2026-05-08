@@ -9,9 +9,9 @@ import './Dnc3DTable.css';
 //
 // Sandbox mode (no game props): renders 20 demo cards in DEFAULT_REGIONS.
 //
-// Connected mode (Phase 2+): pass game, layoutRegions, gameDef, language, doActionList.
-// The adapters translate dragncards Redux state into the engine's data contract.
-// Live reconciliation (state-change re-renders after the server broadcasts back) is Phase 5.
+// Connected mode: pass game, layoutRegions, gameDef, language, doActionList.
+// The engine is (re-)initialized whenever the card set changes (deck load).
+// Incremental reconciliation for mid-game server updates is Phase 5.
 export default function Dnc3DTable({
   tiltDeg      = 15,
   tableOpacity = 100,
@@ -27,14 +27,32 @@ export default function Dnc3DTable({
   const tiltDegRef = useRef(tiltDeg);
   tiltDegRef.current = tiltDeg;
 
-  // Capture connected-mode props at mount time (engine is initialized once).
-  // Phase 3 will add a separate effect for live reconciliation on game changes.
-  const initPropsRef = useRef({ game, layoutRegions, gameDef, language, doActionList });
+  // Live refs — always hold the latest prop values so the engine-init effect
+  // can read them without needing to be listed as deps (which would cause
+  // re-initialization on every Redux tick).
+  const gameRef         = useRef(game);
+  const layoutRef       = useRef(layoutRegions);
+  const gameDefRef      = useRef(gameDef);
+  const languageRef     = useRef(language);
+  const doActionListRef = useRef(doActionList);
+  gameRef.current         = game;
+  layoutRef.current       = layoutRegions;
+  gameDefRef.current      = gameDef;
+  languageRef.current     = language;
+  doActionListRef.current = doActionList;
 
-  // ── One-time engine initialisation ─────────────────────────────────────────
+  // Re-initialize the engine whenever the card set changes.
+  // This handles: switching to dnc3d after cards are loaded, and loading a
+  // deck while already in dnc3d mode. cardCount is a stable numeric dep that
+  // only changes on deck load — not on every card state update.
+  const cardCount = Object.keys(game?.cardById || {}).length;
+
   useEffect(() => {
     const tiltEl = tiltRef.current;
-    const { game: g, layoutRegions: lr, gameDef: gd, language: lang, doActionList: dal } = initPropsRef.current;
+    if (!tiltEl) return;
+
+    const g  = gameRef.current;
+    const lr = layoutRef.current;
     const connected = g && lr;
 
     let engineOptions = {};
@@ -42,9 +60,11 @@ export default function Dnc3DTable({
 
     if (connected) {
       const regions = adaptRegions(lr);
-      const { cardDescriptors, assignments, idMap } = adaptGameState(g, lr, gd, lang);
+      const { cardDescriptors, assignments, idMap } = adaptGameState(
+        g, lr, gameDefRef.current, languageRef.current
+      );
       const reverseIdMap = new Map([...idMap.entries()].map(([k, v]) => [v, k]));
-      const callbacks    = buildEngineCallbacks(dal, reverseIdMap);
+      const callbacks    = buildEngineCallbacks(doActionListRef.current, reverseIdMap);
       engineOptions = { regions, ...callbacks };
       initData      = { cards: cardDescriptors, assignments };
     }
@@ -66,7 +86,7 @@ export default function Dnc3DTable({
       window.removeEventListener('resize', handleResize);
       engineRef.current = null;
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [cardCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Respond to tilt angle changes ──────────────────────────────────────────
   useEffect(() => {
