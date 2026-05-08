@@ -160,6 +160,7 @@ export function createDnc3DEngine(options = {}) {
     cardEl._angle          = angle;
     cardEl._animating      = false;
     cardEl._layoutRotation = 0;
+    cardEl._gameRotation   = 0;
 
     const front = document.createElement('div');
     front.className = 'dnc3d-card-face dnc3d-card-front';
@@ -221,7 +222,7 @@ export function createDnc3DEngine(options = {}) {
       card.liftPx = z_px;
       const frac = z_px / dragLiftMax();
       liftEl.style.transform = `translateZ(${BASE_LIFT + card.pileZ + z_px}px) translateX(${x_px}px)`;
-      cardEl.style.transform = `perspective(300vw) rotateY(${cardEl._angle}deg) rotateZ(${cardEl._layoutRotation}deg) scale(${1 + 0.1 * frac})`;
+      cardEl.style.transform = `perspective(300vw) rotateY(${cardEl._angle}deg) rotateZ(${(cardEl._layoutRotation || 0) + (cardEl._gameRotation || 0)}deg) scale(${1 + 0.1 * frac})`;
       cardEl.style.boxShadow = frac > 0.01
         ? `0 ${frac * 1.1}vh ${frac * 2.5}vh rgba(0,0,0,0.6)`
         : 'none';
@@ -1209,5 +1210,78 @@ export function createDnc3DEngine(options = {}) {
     };
   }
 
-  return { init, applyTilt, applyTableOpacity, setCurrentDeg, onTiltUpdated };
+  // ── Reconcile engine visual state with current Redux game state ───────────
+  // Called on every game state change. Applies targeted updates (rotation, flip,
+  // group/position) without tearing down and rebuilding the whole engine.
+  // idMap: Map<dcCardId, dnc3dIndex>
+  function reconcile(game, idMap) {
+    if (!game || !idMap || !cards.length) return;
+    const cardById  = game.cardById  || {};
+    const stackById = game.stackById || {};
+
+    Object.entries(cardById).forEach(([dcCardId, dcCard]) => {
+      const i = idMap.get(dcCardId);
+      if (i === undefined) return;
+      const card = cards[i];
+      if (!card || !card.cardEl) return;
+
+      // 1. Game rotation (exhaustion, rotation token, etc.)
+      const newGameRot = dcCard.rotation || 0;
+      if (card.cardEl._gameRotation !== newGameRot) {
+        card.cardEl._gameRotation = newGameRot;
+        if (!card.cardEl._animating) {
+          const totalRot = (card.cardEl._layoutRotation || 0) + newGameRot;
+          card.cardEl.style.transform =
+            `perspective(300vw) rotateY(${card.cardEl._angle}deg) rotateZ(${totalRot}deg) scale(1)`;
+        }
+      }
+
+      // 2. Flip — currentSide drives the expected rotateY angle
+      const expectedSide      = dcCard.currentSide || 'A';
+      const currentVisualSide = (card.cardEl._angle % 360 === 180) ? 'B' : 'A';
+      if (currentVisualSide !== expectedSide && !card.cardEl._animating) {
+        card.cardEl._animating = true;
+        animateFlip(card.cardEl, card.liftEl, card.cardEl._angle);
+        card.cardEl._angle += 180;
+      }
+
+      // 3. Group change (card moved by another player)
+      const expectedGroupId = dcCard.groupId;
+      if (expectedGroupId && card.regionId !== expectedGroupId && regionState[expectedGroupId]) {
+        const oldRegionId = card.regionId;
+        moveStackToRegion(card.stackId, expectedGroupId);
+        if (REGIONS[expectedGroupId]?.type === 'free') {
+          const dcStack = stackById[dcCard.stackId];
+          if (dcStack?.left != null && _tiltEl) {
+            const tiltW = parseFloat(_tiltEl.style.width);
+            const tiltH = parseFloat(_tiltEl.style.height);
+            card.fracX = dcStack.left;
+            card.fracY = dcStack.top ?? 0;
+            animateCardTo(card, dcStack.left * tiltW, (dcStack.top ?? 0) * tiltH, 0, card.id + 1, 300, 0);
+          }
+        } else {
+          layoutRegion(expectedGroupId);
+        }
+        if (oldRegionId && oldRegionId !== expectedGroupId) layoutRegion(oldRegionId);
+      }
+
+      // 4. Free-region position update (card moved within same free region)
+      if (card.regionId && REGIONS[card.regionId]?.type === 'free') {
+        const dcStack = stackById[dcCard.stackId];
+        if (dcStack?.left != null && _tiltEl) {
+          const dx = Math.abs((dcStack.left  ?? 0) - (card.fracX || 0));
+          const dy = Math.abs((dcStack.top   ?? 0) - (card.fracY || 0));
+          if (dx > 0.001 || dy > 0.001) {
+            const tiltW = parseFloat(_tiltEl.style.width);
+            const tiltH = parseFloat(_tiltEl.style.height);
+            card.fracX = dcStack.left;
+            card.fracY = dcStack.top ?? 0;
+            animateCardTo(card, dcStack.left * tiltW, (dcStack.top ?? 0) * tiltH, card.cardEl._layoutRotation, card.id + 1, 300, 0);
+          }
+        }
+      }
+    });
+  }
+
+  return { init, applyTilt, applyTableOpacity, setCurrentDeg, onTiltUpdated, reconcile };
 }

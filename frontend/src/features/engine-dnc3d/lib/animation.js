@@ -7,7 +7,7 @@ export function easeIn(t)  { return t * t; }
 export function animateFlip(cardEl, liftEl, startAngle) {
   const startTime      = performance.now();
   const LIFT           = window.innerHeight * 0.07 * (1 + MAX_ZOOM);
-  const startLayoutRot = cardEl._layoutRotation || 0;
+  const startLayoutRot = (cardEl._layoutRotation || 0) + (cardEl._gameRotation || 0);
   const growMs         = scaleDuration(GROW);
   const flipMs         = scaleDuration(FLIP);
   const shrinkMs       = scaleDuration(SHRINK);

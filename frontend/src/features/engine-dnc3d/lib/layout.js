@@ -298,7 +298,7 @@ export function createLayout(state, projection, REGIONS) {
     card.liftEl.style.zIndex    = zIdx;
     card.pileZ                  = stackZ;
     card.cardEl._layoutRotation = rot;
-    card.cardEl.style.transform = `perspective(300vw) rotateY(${card.cardEl._angle}deg) rotateZ(${rot}deg) scale(1)`;
+    card.cardEl.style.transform = `perspective(300vw) rotateY(${card.cardEl._angle}deg) rotateZ(${rot + (card.cardEl._gameRotation || 0)}deg) scale(1)`;
   }
 
   function animateCardTo(card, targetLeft, targetTop, targetRot, targetZ, duration = 300, targetStackZ = 0) {
@@ -319,7 +319,7 @@ export function createLayout(state, projection, REGIONS) {
       card.liftEl.style.top       = (fromTop  + (targetTop  - fromTop)  * e - o.y) + 'px';
       card.liftEl.style.transform = `translateZ(${BASE_LIFT + sz}px)`;
       card.cardEl._layoutRotation = fromRot + (targetRot - fromRot) * e;
-      card.cardEl.style.transform = `perspective(300vw) rotateY(${card.cardEl._angle}deg) rotateZ(${card.cardEl._layoutRotation}deg) scale(1)`;
+      card.cardEl.style.transform = `perspective(300vw) rotateY(${card.cardEl._angle}deg) rotateZ(${card.cardEl._layoutRotation + (card.cardEl._gameRotation || 0)}deg) scale(1)`;
       if (t < 1) {
         card.layoutAnimId = requestAnimationFrame(frame);
       } else {

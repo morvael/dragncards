@@ -24,6 +24,7 @@ export default function Dnc3DTable({
 }) {
   const tiltRef    = useRef(null);
   const engineRef  = useRef(null);
+  const idMapRef   = useRef(null);
   const tiltDegRef = useRef(tiltDeg);
   tiltDegRef.current = tiltDeg;
 
@@ -67,6 +68,9 @@ export default function Dnc3DTable({
       const callbacks    = buildEngineCallbacks(doActionListRef.current, reverseIdMap);
       engineOptions = { regions, ...callbacks };
       initData      = { cards: cardDescriptors, assignments };
+      idMapRef.current = idMap;
+    } else {
+      idMapRef.current = null;
     }
 
     const engine = createDnc3DEngine(engineOptions);
@@ -87,6 +91,15 @@ export default function Dnc3DTable({
       engineRef.current = null;
     };
   }, [cardCount]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Reconcile engine state with Redux on every game change ─────────────────
+  // Handles rotation, flip, and position updates without a full re-init.
+  // Card-set changes (deck load) are handled by the cardCount effect above.
+  useEffect(() => {
+    const engine = engineRef.current;
+    if (!engine || !game || !idMapRef.current) return;
+    engine.reconcile(game, idMapRef.current);
+  }, [game]);
 
   // ── Respond to tilt angle changes ──────────────────────────────────────────
   useEffect(() => {
