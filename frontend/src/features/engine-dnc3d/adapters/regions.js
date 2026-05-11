@@ -14,6 +14,34 @@ function toPercent(val) {
   return 0;
 }
 
+// Mirrors the substitution logic from useFormatGroupId / useFormatGroupId.js.
+// observingPlayerN is a string like "player1"; numPlayers is an integer.
+export function formatGroupId(groupId, observingPlayerN, numPlayers) {
+  if (!groupId || !observingPlayerN) return groupId;
+  const playerIndex = parseInt(observingPlayerN.replace('player', '')) - 1;
+
+  // {playerN+X} / {playerN-X} — relative player offset
+  const relPattern = /\{playerN([+-]\d+)\}/g;
+  if (relPattern.test(groupId)) {
+    return groupId.replace(/\{playerN([+-]\d+)\}/g, (_, offset) => {
+      const n = numPlayers || 1;
+      return `player${((playerIndex + parseInt(offset)) % n) + 1}`;
+    });
+  }
+  // playerN+X / playerN-X without braces
+  const relNoBrace = /playerN([+-]\d+)/g;
+  if (relNoBrace.test(groupId)) {
+    return groupId.replace(/playerN([+-]\d+)/g, (_, offset) => {
+      const n = numPlayers || 1;
+      return `player${((playerIndex + parseInt(offset)) % n) + 1}`;
+    });
+  }
+  // Plain {playerN} and playerN
+  groupId = groupId.replace(/\{playerN\}/g, observingPlayerN);
+  groupId = groupId.replace(/playerN/g, observingPlayerN);
+  return groupId;
+}
+
 // Maps dragncards region types to dnc3d region types.
 // dnc3d supports: 'free' | 'row' | 'fan' | 'pile'
 const TYPE_MAP = {
@@ -25,13 +53,14 @@ const TYPE_MAP = {
   hand: 'fan',
 };
 
-export function adaptRegions(layoutRegions) {
+export function adaptRegions(layoutRegions, observingPlayerN, numPlayers) {
   if (!layoutRegions) return {};
   const regions = {};
   Object.entries(layoutRegions).forEach(([, region]) => {
     if (region.visible === false) return;
-    const groupId = region.groupId;
-    if (!groupId) return;
+    const rawGroupId = region.groupId;
+    if (!rawGroupId) return;
+    const groupId = formatGroupId(rawGroupId, observingPlayerN, numPlayers);
     const type = TYPE_MAP[region.type] || 'free';
     regions[groupId] = {
       left:   toPercent(region.left),
@@ -39,9 +68,9 @@ export function adaptRegions(layoutRegions) {
       width:  toPercent(region.width),
       height: toPercent(region.height),
       type,
-      ...(region.direction     ? { direction:       region.direction }      : {}),
-      ...(region.layerIndex    ? { layerIndex:       region.layerIndex }     : {}),
-      ...(region.backgroundColor ? { backgroundColor: region.backgroundColor } : {}),
+      ...(region.direction       ? { direction:         region.direction }       : {}),
+      ...(region.layerIndex      ? { layerIndex:         region.layerIndex }      : {}),
+      ...(region.backgroundColor ? { backgroundColor:   region.backgroundColor } : {}),
     };
   });
   return regions;

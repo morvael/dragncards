@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useSelector } from 'react-redux';
 import { createDnc3DEngine } from './lib/engine';
 import { adaptRegions } from './adapters/regions';
 import { adaptGameState } from './adapters/cards';
@@ -22,6 +23,9 @@ export default function Dnc3DTable({
   language,
   doActionList,
 }) {
+  const observingPlayerN = useSelector(s => s?.playerUi?.observingPlayerN);
+  const numPlayers       = useSelector(s => s?.gameUi?.game?.numPlayers);
+
   const tiltRef    = useRef(null);
   const engineRef  = useRef(null);
   const idMapRef   = useRef(null);
@@ -31,16 +35,20 @@ export default function Dnc3DTable({
   // Live refs — always hold the latest prop values so the engine-init effect
   // can read them without needing to be listed as deps (which would cause
   // re-initialization on every Redux tick).
-  const gameRef         = useRef(game);
-  const layoutRef       = useRef(layoutRegions);
-  const gameDefRef      = useRef(gameDef);
-  const languageRef     = useRef(language);
-  const doActionListRef = useRef(doActionList);
-  gameRef.current         = game;
-  layoutRef.current       = layoutRegions;
-  gameDefRef.current      = gameDef;
-  languageRef.current     = language;
-  doActionListRef.current = doActionList;
+  const gameRef            = useRef(game);
+  const layoutRef          = useRef(layoutRegions);
+  const gameDefRef         = useRef(gameDef);
+  const languageRef        = useRef(language);
+  const doActionListRef    = useRef(doActionList);
+  const observingPlayerRef = useRef(observingPlayerN);
+  const numPlayersRef      = useRef(numPlayers);
+  gameRef.current            = game;
+  layoutRef.current          = layoutRegions;
+  gameDefRef.current         = gameDef;
+  languageRef.current        = language;
+  doActionListRef.current    = doActionList;
+  observingPlayerRef.current = observingPlayerN;
+  numPlayersRef.current      = numPlayers;
 
   // Re-initialize the engine whenever the card set changes.
   // This handles: switching to dnc3d after cards are loaded, and loading a
@@ -60,9 +68,11 @@ export default function Dnc3DTable({
     let initData      = {};
 
     if (connected) {
-      const regions = adaptRegions(lr);
+      const playerN    = observingPlayerRef.current;
+      const nPlayers   = numPlayersRef.current;
+      const regions = adaptRegions(lr, playerN, nPlayers);
       const { cardDescriptors, assignments, idMap } = adaptGameState(
-        g, lr, gameDefRef.current, languageRef.current
+        g, lr, gameDefRef.current, languageRef.current, playerN, nPlayers
       );
       const reverseIdMap = new Map([...idMap.entries()].map(([k, v]) => [v, k]));
       const callbacks    = buildEngineCallbacks(doActionListRef.current, reverseIdMap);

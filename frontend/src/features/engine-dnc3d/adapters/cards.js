@@ -1,3 +1,5 @@
+import { formatGroupId } from './regions';
+
 // Resolves a card face's imageUrl using the gameDef prefix/language system,
 // mirroring the logic in useVisibleFaceSrc without needing React hooks.
 export function resolveImageUrl(face, gameDef, language) {
@@ -25,7 +27,7 @@ export function resolveImageUrl(face, gameDef, language) {
 //                     indexed 0..N, one per card in game.cardById
 //   assignments     — { [groupId]: [{ cardIds: [int,...], attachmentDirections, fracX, fracY }] }
 //   idMap           — Map<dcCardId, dnc3dIndex> for mapping action callbacks back
-export function adaptGameState(game, layoutRegions, gameDef, language) {
+export function adaptGameState(game, layoutRegions, gameDef, language, observingPlayerN, numPlayers) {
   const { cardById = {}, stackById = {}, groupById = {} } = game || {};
 
   // 1. Build integer index mapping for all cards
@@ -48,12 +50,14 @@ export function adaptGameState(game, layoutRegions, gameDef, language) {
     };
   });
 
-  // 3. Build assignments keyed by groupId
+  // 3. Build assignments keyed by groupId (with playerN substitution)
   const assignments = {};
   Object.entries(layoutRegions || {}).forEach(([, region]) => {
     if (region.visible === false) return;
-    const groupId = region.groupId;
-    if (!groupId || !groupById[groupId]) return;
+    const rawGroupId = region.groupId;
+    if (!rawGroupId) return;
+    const groupId = formatGroupId(rawGroupId, observingPlayerN, numPlayers);
+    if (!groupById[groupId]) return;
 
     const group = groupById[groupId];
     const stacks = [];
