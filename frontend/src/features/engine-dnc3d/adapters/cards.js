@@ -30,12 +30,22 @@ export function resolveImageUrl(face, gameDef, language) {
 export function adaptGameState(game, layoutRegions, gameDef, language, observingPlayerN, numPlayers) {
   const { cardById = {}, stackById = {}, groupById = {} } = game || {};
 
-  // 1. Build integer index mapping for all cards
-  const allCardIds = Object.keys(cardById);
-  const idMap = new Map(allCardIds.map((dcId, i) => [dcId, i]));
+  // 1. Determine which groups have a visible layout region.
+  //    Cards in groups without a region are not rendered at all.
+  const visibleGroupIds = new Set();
+  Object.values(layoutRegions || {}).forEach(region => {
+    if (region.visible === false || !region.groupId) return;
+    visibleGroupIds.add(formatGroupId(region.groupId, observingPlayerN, numPlayers));
+  });
 
-  // 2. Build card descriptors
-  const cardDescriptors = allCardIds.map((dcId, i) => {
+  // 2. Build integer index mapping for visible cards only
+  const visibleCardIds = Object.keys(cardById).filter(
+    dcId => visibleGroupIds.has(cardById[dcId]?.groupId)
+  );
+  const idMap = new Map(visibleCardIds.map((dcId, i) => [dcId, i]));
+
+  // 3. Build card descriptors for visible cards
+  const cardDescriptors = visibleCardIds.map((dcId, i) => {
     const card = cardById[dcId];
     const sides = card.sides || {};
     const sideKeys = Object.keys(sides);
@@ -50,7 +60,7 @@ export function adaptGameState(game, layoutRegions, gameDef, language, observing
     };
   });
 
-  // 3. Build assignments keyed by groupId (with playerN substitution)
+  // 4. Build assignments keyed by groupId (with playerN substitution)
   const assignments = {};
   Object.entries(layoutRegions || {}).forEach(([, region]) => {
     if (region.visible === false) return;
@@ -71,13 +81,11 @@ export function adaptGameState(game, layoutRegions, gameDef, language, observing
         .filter(id => id !== undefined);
       if (!dnc3dCardIds.length) return;
 
-      // attachmentDirections for cards[1..] (the parent at [0] has no direction)
       const attachmentDirections = (stack.cardIds || []).slice(1).map(dcId => {
         const dir = cardById[dcId]?.attachmentDirection;
         return (dir === 'left' || dir === 'right') ? dir : 'right';
       });
 
-      // Free-region stacks store their position as 0-1 fractions on the stack
       stacks.push({
         cardIds: dnc3dCardIds,
         attachmentDirections,
